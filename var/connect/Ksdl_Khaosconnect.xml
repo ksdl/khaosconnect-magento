@@ -1,0 +1,95 @@
+<_>
+   <form_key>4yh3IgYa9rBzHWQe</form_key>
+   <name>Ksdl_Khaosconnect</name>
+   <channel>community</channel>
+   <version_ids>
+      <version_ids>2</version_ids>
+   </version_ids>
+   <summary>Integration module for Keystone Software&apos;s Khaos Control back office application.</summary>
+   <description>This module will provide an integration between Khaos Control and your Magento website. The module will bring stock, web categories and customers from Khaos to your website as well as importing orders into Khaos from your website.</description>
+   <license>Apache License v2.0</license>
+   <license_uri>http://www.apache.org/licenses/<license_uri>
+   <version>1.7.4</version>
+   <stability>stable</stability>
+   <notes>The module has been released for initial testing and feedback.</notes>
+   <authors>
+      <name>
+         <name>Keystone Software</name>
+      </name>
+      <user>
+         <user>agaunt</user>
+      </user>
+      <email>
+         <email>agaunt@keystonesoftware.co.uk</email>
+      </email>
+   </authors>
+   <depends_php_min>5.2.0</depends_php_min>
+   <depends_php_max>6.0.0</depends_php_max>
+   <depends>
+      <package>
+         <name>
+            <name/>
+         </name>
+         <channel>
+            <channel/>
+         </channel>
+         <min>
+            <min/>
+         </min>
+         <max>
+            <max/>
+         </max>
+         <files>
+            <files>                                                                                                                                                                                                          </files>
+         </files>
+      </package>
+      <extension>
+         <name>
+            <name>Core</name>
+         </name>
+         <min>
+            <min/>
+         </min>
+         <max>
+            <max/>
+         </max>
+      </extension>
+   </depends>
+   <contents>
+      <target>
+         <target>magelocal</target>
+         <target>magecommunity</target>
+         <target>magedesign</target>
+         <target>mage</target>
+         <target>mageetc</target>
+      </target>
+      <path>
+         <path/>
+         <path>Ksdl/Khaosconnect</path>
+         <path>adminhtml/default/default/layout/khaosconnect.xml</path>
+         <path>js/khaosconnect/javascript.js</path>
+         <path>modules/Ksdl_Khaosconnect.xml</path>
+      </path>
+      <type>
+         <type>file</type>
+         <type>dir</type>
+         <type>file</type>
+         <type>file</type>
+         <type>file</type>
+      </type>
+      <include>
+         <include/>
+         <include/>
+         <include/>
+         <include/>
+         <include/>
+      </include>
+      <ignore>
+         <ignore/>
+         <ignore/>
+         <ignore/>
+         <ignore/>
+         <ignore/>
+      </ignore>
+   </contents>
+</_>
