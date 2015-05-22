@@ -1,0 +1,1 @@
+Original KhaosConnect Magento Module plug-in developed by Keystone Software Development Ltd (http://www.khaoscontrol.com)
