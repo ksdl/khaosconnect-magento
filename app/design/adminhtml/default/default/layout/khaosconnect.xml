@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<layout>
+  <adminhtml_khaosconnect_index>
+    <reference name="head">
+        <action method="addJs"><script>khaosconnect/javascript.js</script></action>
+    </reference>
+  </adminhtml_khaosconnect_index>
+</layout>

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<config>
+  <modules>
+    <Ksdl_Khaosconnect>
+      <active>true</active>
+      <codePool>community</codePool>
+      <version>1.7.4</version>
+    </Ksdl_Khaosconnect>
+  </modules>
+</config>

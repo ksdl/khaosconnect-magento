@@ -1,0 +1,35 @@
+<config>
+    <menu>
+        <khaosconnect module="khaosconnect">
+            <title>Khaos Control Connector</title>
+            <sort_order>11</sort_order>
+            <children>
+                <khaosconnectbackend module="khaosconnect">
+                    <title>Data Syncronisation</title>
+                    <sort_order>1</sort_order>
+                    <action>adminhtml/khaosconnect/index</action>
+                </khaosconnectbackend>
+            </children>
+        </khaosconnect>
+    </menu>
+    <acl>
+        <resources>
+            <all>
+                <title>Allow Everything</title>
+            </all>
+            <admin>
+                <children>
+                    <khaosconnect translate="title" module="khaosconnect">
+                        <title>Khaos Connect</title>
+                        <sort_order>30</sort_order>
+                        <children>
+                            <khaosconnectbackend translate="title">
+                                <title>Data Syncronisation</title>
+                            </khaosconnectbackend>
+                        </children>
+                    </khaosconnect>
+                </children>
+            </admin>
+        </resources>
+    </acl>
+</config>
