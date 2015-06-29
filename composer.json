@@ -1,0 +1,18 @@
+
+{
+    "name": "ksdl/khaosconnect-magento",
+    "type": "magento-module",
+    "description": "KSDL KhaosConnect Magento Module",
+    "license": "Apache",
+    "require": {
+        "magento-hackathon/magento-composer-installer": "*"
+    },
+    "extra": {
+        "map": [
+            ["app/code/community/Ksdl/Khaosconnect", "app/code/community/Ksdl/Khaosconnect"],
+            ["app/design/adminhtml/default/default/layout/khaosconnect.xml", "app/design/adminhtml/default/default/layout/khaosconnect.xml"],
+            ["app/etc/modules/Ksdl_Khaosconnect.xml", "app/etc/modules/Ksdl_Khaosconnect.xml"],
+            ["js/khaosconnect", "js/khaosconnect"]
+        ]
+    }
+}
