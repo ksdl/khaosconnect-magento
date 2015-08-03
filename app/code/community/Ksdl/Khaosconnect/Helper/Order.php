@@ -425,6 +425,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 break;
             case "sagepaydirectpro":
             case "sagepayserver":
+            case "sagepayserver_moto":
                 $sql = "select ";
                 $sql .= "'" . $type . "' as type, ";
                 $sql .= "'' as card_number, ";
