@@ -20,23 +20,23 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
 {
     const cAdressTypeInv = -1;
     const cAdressTypeDel = 0;
-    
+
     protected $processingStoreId;
-    
+
     function __construct()
     {
         parent::__construct();
-    }   
-     
+    }
+
     public function doOrderExport($storeIds)
     {
         $this->setAction("Order Export");
         $this->setCode("NULL");
-        
+
         foreach ($storeIds as $storeId)
         {
             $this->processingStoreId = $storeId;
-            
+
             $lastSyncTime = $this->systemValues->getSysValue($this->systemValues->roLastSyncPrefix . $this->processingStoreId);
             $statusToExport = $this->systemValues->getSysValue('export_stage_name');
             $statusToUpdateTo = $this->systemValues->getSysValue('export_stage_name_update');
@@ -52,40 +52,40 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 query()->
                 fetch();
             $stateToUpdateTo = $newStateValueArray['state'];
-            
+
             $adminTable = $this->resource->getTableName('khaosconnect_admin_order');
             $orders = Mage::getModel('sales/order')->getCollection()
                 ->addFieldToFilter('status', $statusToExport)
                 ->addFieldToFilter('store_id', $this->processingStoreId)
                 ->addFieldToFilter('updated_at', array('gteq' => date('Y-m-d H:i:s', $lastSyncTime)))
-                ->addFieldToFilter('kc_exported', array('null' => true)); 
-            
-            //Doing a clone here because I want a total order count but doing count($orders) 
+                ->addFieldToFilter('kc_exported', array('null' => true));
+
+            //Doing a clone here because I want a total order count but doing count($orders)
             //will cause the collection to load and in turn it won't apply the left join later on.
             //Not using clone will cause both the vars collection to be loaded as they use the same reference.
             $countOrdersObjs = clone $orders;
             $totalOrderCount = count($countOrdersObjs);
             unset($countOrdersObjs);
-            
+
             $orders->getSelect()
                 ->joinLeft(array("t1" => $adminTable), "main_table.entity_id = t1.entity_id", array("admin_field_id" => "t1.id"));
                 //->where("t1.id is null");
-                      
+
             $nonAdminOrderCount = count($orders);
             $adminOrderCount = $totalOrderCount - $nonAdminOrderCount;
-            
-            $message = 'Export Orders (' . $statusToExport . '): ' . $nonAdminOrderCount . ' order(s) to export.'; 
+
+            $message = 'Export Orders (' . $statusToExport . '): ' . $nonAdminOrderCount . ' order(s) to export.';
             if ($adminOrderCount > 0)
                 $message .= ' Skipping ' . $adminOrderCount . ' admin created order(s).';
-            
+
             $this->dbLog('', parent::cLogTypeOrder, $message, '', parent::cLogStatusSuccess);
-            
+
             foreach ($orders as $orderObj)
-            {          
+            {
                 $incrementId = $orderObj->getIncrementId();
                 $entityId = $orderObj->getEntityId();
                 $this->setCode($incrementId);
-                
+
                 try
                 {
                     $orderXmlStr = $this->exportOrder($orderObj);
@@ -108,30 +108,30 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                     $this->logOrder($e, $entityId, $incrementId);
                 }
             }
-            
+
             if (count($orders) == 0)
                 $this->systemValues->setSysValue($this->systemValues->roLastSyncPrefix . $this->processingStoreId, time());
         }
     }
-    
+
     protected function updateExportedFlag($id)
     {
-        $sql = "update sales_flat_order set kc_exported = 1 where entity_id = " . $this->writeDB->quote($id); 
+        $sql = "update sales_flat_order set kc_exported = 1 where entity_id = " . $this->writeDB->quote($id);
         $this->writeDB->beginTransaction();
         $this->writeDB->query($sql);
         $this->writeDB->commit();
     }
-    
+
     public function setOrderStatus($orderObj, $status, $message)
     {
         $orderObj->setState($status, $status, $message, false)->save();
     }
-    
+
     public function doOrderStatusSync($storeIds)
     {
         $this->setAction("Order Status Sync");
         $this->setCode("");
-        
+
         foreach ($storeIds as $storeId)
         {
             $associatedRefs = array();
@@ -139,38 +139,38 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
             $orders = Mage::getModel('sales/order')->getCollection()
                     ->addFieldToFilter('store_id', $storeId)
                     ->addAttributeToFilter('status', array('neq' => 'complete'));
-            
+
             foreach ($orders as $orderObj)
                 $associatedRefs[] = $orderObj->getIncrementId();
-            
+
             $statuses = Mage::helper('khaosconnect/webservice')->exportOrderStatus($associatedRefs);
             if (!empty($statuses))
-            {                
-                $sql = "select status, state from " . $this->resource->getTableName('sales_order_status_state');                
-                $query = $this->readDB->query($sql);            
+            {
+                $sql = "select status, state from " . $this->resource->getTableName('sales_order_status_state');
+                $query = $this->readDB->query($sql);
                 $states = array();
                 while ($row = $query->fetch())
                     $states[$row['status']] = $row['state'];
-        
+
                 foreach ($statuses as $status)
                 {
                     $incrementId = (string)$status->attributes()->ASSOCIATED_REF;
                     $orderObj->load($incrementId, 'increment_id');
                     $currentOrderState = $orderObj->getState();
-                    
+
                     foreach ($status->INVOICES->INVOICE as $invoice)
                     {
-                        $stateCode = "kc_" . $invoice->attributes()->INVOICE_STAGE_ID;   
-                                                
+                        $stateCode = "kc_" . $invoice->attributes()->INVOICE_STAGE_ID;
+
                         if (array_key_exists($stateCode, $states)) //Look for a specific mapping that the user has set up.
                         {
                             $state = $states[$stateCode];
                             switch ($state)
                             {
-                                case "complete": 
+                                case "complete":
                                     $orderObj->addStatusToHistory(Mage_Sales_Model_Order::STATE_COMPLETE)->save();
                                     break;
-                                case "closed": 
+                                case "closed":
                                     $orderObj->addStatusToHistory(Mage_Sales_Model_Order::STATE_CLOSED)->save();
                                     break;
                                 default:
@@ -183,7 +183,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                         {
                             $stateSet = false;
                             $state = "";
-                            
+
                             switch ((int)$invoice->attributes()->INVOICE_STAGE_ID)
                             {
                                 case 1: //Cancelled
@@ -217,30 +217,30 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                                     break;
                                 case 11: //Authorise Payment
                                     $state = Mage_Sales_Model_Order::STATE_PENDING_PAYMENT;
-                                    break;                                
+                                    break;
                             }
-                            
+
                             if (!$stateSet && $state != $currentOrderState)
                                 $orderObj->setState($state, true, "State Updated by Khaos Connect", false)->save();
                         }
                     }
                 }
             }
-            
+
             $this->systemValues->setSysValue($this->systemValues->rsLastSyncPrefix . $storeId, time());
         }
     }
-    
+
     public function doKeycodeSync()
     {
         $keycodes = Mage::helper('khaosconnect/webservice')->getKeycodes();
         $this->setAction("Keycode");
-        
+
         foreach ($keycodes->KEYCODES->KEYCODE as $keycode)
         {
             $couponCode = $this->getPropS($keycode, "CODE");
             $this->setCode($couponCode);
-            
+
             try
             {
                 if ($keycode->WEB_USE == "-1")
@@ -253,7 +253,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                         $rule->load($coupon->getRuleId());
                         $existingCustomerGroupIds = $rule->getData("customer_group_ids");
                     }
-                    
+
                     $data = array(
                         "name"              => $this->getPropS($keycode, "DESCRIPTION"),
                         "description"       => $this->getPropS($keycode, "DESCRIPTION"),
@@ -269,53 +269,53 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                         "is_rss"            => "0",
                         "stop_rules_processing" => "0"
                     );
-                
+
                     $companyClass = $this->getPropS($keycode, "COMPANY_CLASS");
                     if ($companyClass == "Unknown")
                         $companyClass = "NOT LOGGED IN";
-                    
+
                     if (!empty($companyClass))
                     {
                         $customerGroupId = $groupObj = Mage::getModel('customer/group')->load($companyClass, 'customer_group_code')->getId();
                         $data["customer_group_ids"] = array_unique(array_merge($existingCustomerGroupIds, array($customerGroupId)));
                     }
-                
+
                     //Order Discount
                     if (!empty($keycode->DISCOUNTS))
                     {
-                        $orderDiscount = $keycode->DISCOUNTS->DISCOUNT[0];              
+                        $orderDiscount = $keycode->DISCOUNTS->DISCOUNT[0];
                         $data["simple_action"] = "by_percent";
-                        $data["discount_amount"] = $this->getPropS($orderDiscount->attributes(), "PCDISCOUNT");                   
+                        $data["discount_amount"] = $this->getPropS($orderDiscount->attributes(), "PCDISCOUNT");
                         $data["discount_qty"] = "0";
                         $data["discount_step"] = "0";
-                    
+
                         $data["conditions"]["1"] = array(
                             "type"          => "salesrule/rule_condition_combine",
                             "aggregator"    => "all",
                             "value"         => "1"
                         );
-                    
+
                         $data["conditions"]["1--1"] = array(
                             "type"          => "salesrule/rule_condition_address",
                             "attribute"     => "base_subtotal",
                             "operator"      => ">=",
                             "value"         => $this->getPropS($orderDiscount->attributes(), "ORDERLOW")
                         );
-                    
+
                         $data["conditions"]["1--2"] = array(
                             "type"          => "salesrule/rule_condition_address",
                             "attribute"     => "base_subtotal",
                             "operator"      => "<=",
                             "value"         => $this->getPropS($orderDiscount->attributes(), "ORDERHIGH")
                         );
-                    
+
                         $data["actions"]["1"] = array(
                             "type"          => "salesrule/rule_condition_combine",
                             "aggregator"    => "all",
                             "value"         => "1"
                         );
                     }
-                
+
                     $rule->loadPost($data);
                     $rule->save();
                 }
@@ -329,14 +329,14 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 $this->dbLog("0", parent::cLogTypeKeycode, $message, "0", parent::cLogStatusFailed);
             }
         }
-        
+
         $this->systemValues->setSysValue($this->systemValues->kcLastSyncPrefix, time());
     }
-    
+
     protected function logOrder($result, $entityId, $incrementId)
     {
         $type = parent::cLogTypeOrder;
-        
+
         if ($result instanceof Exception)
         {
             $message = "
@@ -351,7 +351,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
             if ($importedCount > 0)
             {
                 $importedOrder = $result->OrderImport[0];
-                
+
                 $salesOrderCode = $importedOrder->SalesOrderCode;
                 $message = "Order: {" . $incrementId . "} to Khaos {" . $salesOrderCode . "}";
                 $status = parent::cLogStatusSuccess;
@@ -362,10 +362,10 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 $status = parent::cLogStatusSuccess;
             }
         }
-        
+
         $this->dbLog($entityId, $type, $message, $incrementId, $status);
     }
-    
+
     protected function exportOrder($orderObj)
     {
         $xmlSalesOrders = new SimpleXMLElement('<SALES_ORDERS></SALES_ORDERS>');
@@ -374,23 +374,23 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
         $this->exportOrderHeader($orderObj, $xmlSalesOrder);
         $this->exportOrderItems($orderObj, $xmlSalesOrder);
         $this->exportOrderPayment($orderObj, $xmlSalesOrder);
-        
+
         return $xmlSalesOrders->asXML();
     }
-    
+
     protected function exportOrderPayment($orderObj, &$xmlSalesOrder)
     {
         $paymentData = $this->getPaymentData($orderObj->getPayment()->getMethodInstance()->getCode(), $orderObj);
         if ($paymentData)
             $this->exportPayment($xmlSalesOrder, $paymentData);
     }
-    
+
     protected function getPaymentData($type, $orderObj)
     {
-        $accountNumber = $this->systemValues->getSysValue($this->systemValues->opCCKhaosAccountNumber) != "" 
+        $accountNumber = $this->systemValues->getSysValue($this->systemValues->opCCKhaosAccountNumber) != ""
             ? $this->systemValues->getSysValue($this->systemValues->opCCKhaosAccountNumber)
             : "0";
-        
+
         $sql = '';
         switch ($type)
         {
@@ -439,6 +439,20 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 $sql .= "tx_type ";
                 $sql .= "from " . $this->resource->getTableName('sagepaysuite_transaction') . " where order_id = ";
                 break;
+            case "m2epropayment":
+                $sql = "select ";
+                $sql .= "'" . $type . "' as type, ";
+                $sql .= "'' as card_number, ";
+                $sql .= "'M2EPRO' as auth_code, ";
+                $sql .= "additional_data as preauth_ref, ";
+                $sql .= "last_trans_id as transaction_id, ";
+                $sql .= "'' as security_ref, ";
+                $sql .= "'' as account_name, ";
+                $sql .= "'' as account_number, ";
+                $sql .= "'' as status, ";
+                $sql .= "'' as tx_type ";
+                $sql .= "from " . $this->resource->getTableName('sales_flat_order_payment') . " where parent_id = ";
+                break;
             case "paypal_express":
             case "paypal_standard":
             case "paypal_advanced":
@@ -457,31 +471,44 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 break;
             case "checkmo": $sql = ""; break;
         }
-        
+
         if ($sql == '')
             return false;
-        
+
         $sql .= $orderObj->getEntityId();
         return $this->mapPaymentArray($orderObj, $sql);
     }
-    
+
     protected function mapPaymentArray($orderObj, $sql)
     {
         $query = $this->readDB->query($sql);
         if ($query->rowCount() == 0)
             return false;
-        
+
         $result = array();
         $result['payment_amount'] = (string)$orderObj->getGrandTotal();
         $result['payment_type'] = '2';
         $preAuth = false;
-        
+
         while ($row = $query->fetch())
         {
+            if ($row['auth_code'] == 'M2EPRO') {
+                $transaction = unserialize($row['transaction_id']);
+                if ($transaction['payment_method'] == 'PayPal') {
+                    $row['card_number'] = 'PAYPAL';
+                    $row['auth_code']   = 'PAYPAL';
+                    $row['preauth_ref'] = $transaction['channel_order_id'];
+                } else {
+                    $row['card_number']    = strtoupper($transaction['component_mode']);
+                    $row['auth_code']      = strtoupper($transaction['component_mode']);
+                    $row['transaction_id'] = $transaction['channel_order_id'];
+                }
+            }
+
             $result['auth_code'] = $row['auth_code'];
             if ($row['auth_code'] == "")
-                $preAuth = true;            
-            
+                $preAuth = true;
+
             $result['preauth_ref'] = $row['preauth_ref'];
             $result['transaction_id'] = $row['transaction_id'];
             $result['security_ref'] = $row['security_ref'];
@@ -491,21 +518,21 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
             if ($row['tx_type'] == "AUTHENTICATE")
                 $result['auth_code'] = $row['status'];
         }
-        
+
         $result['preauth'] = $preAuth ? "-1" : "0";
-        
+
         return $result;
     }
-    
+
     protected function exportPayment(&$xmlSalesOrder, $paymentData)
     {
         $xmlOrderPayments = $xmlSalesOrder->addChild('PAYMENTS');
         $xmlOrderPaymentDetail = $xmlOrderPayments->addChild('PAYMENT_DETAIL');
         foreach ($paymentData as $key => $value)
             $xmlOrderPaymentDetail->addChild(strtoupper($key), $value);
-        
+
     }
-    
+
     protected function exportOrderItems($orderObj, &$xmlSalesOrder)
     {
         $xmlOrderItems = $xmlSalesOrder->addChild('ORDER_ITEMS');
@@ -516,7 +543,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 $this->exportItem($itemObj, $xmlOrderItems);
         }
     }
-    
+
     protected function exportItem($itemObj, &$xmlOrderItems)
     {
         $xmlOrderItem = $xmlOrderItems->addChild('ORDER_ITEM');
@@ -528,10 +555,10 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
         if ($itemObj->getTaxAmount() == 0)
             $xmlOrderItem->PRICE_NET = $itemObj->getPriceInclTax();
         else
-            $xmlOrderItem->PRICE_GRS = $itemObj->getPriceInclTax();      
-        $xmlOrderItem->KSD_DISCOUNT = $itemObj->getDiscountPercent();      
+            $xmlOrderItem->PRICE_GRS = $itemObj->getPriceInclTax();
+        $xmlOrderItem->KSD_DISCOUNT = $itemObj->getDiscountPercent();
     }
-    
+
     protected function exportOrderHeader($orderObj, &$xmlSalesOrder)
     {
         $xmlOrderHeader = $xmlSalesOrder->addChild('ORDER_HEADER');
@@ -544,31 +571,31 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
         $xmlOrderHeader->INV_PRIORITY = (string)$orderObj->getKcInvoicePriority();
         $xmlOrderHeader->SITE = (string)$orderObj->getKcStockSite();
         $xmlOrderHeader->KEYCODE_CODE = (string)$orderObj->getCouponCode();
-        
+
         if ((string)$xmlOrderHeader->PO_NUMBER == "")
             $xmlOrderHeader->PO_NUMBER = substr($orderObj->getPayment()->getPoNumber(),0,30);
-        
+
         $brand = $this->systemValues->getSysValue($this->systemValues->roBrandPrefix . $this->processingStoreId);
         if (!empty($brand))
             $xmlOrderHeader->BRAND = $brand;
-        
+
         $salesSource = $this->systemValues->getSysValue($this->systemValues->roSalesSource . $this->processingStoreId);
         if (!empty($salesSource))
             $xmlOrderHeader->SALES_SOURCE = $salesSource;
-        
+
         $site = $this->systemValues->getSysValue($this->systemValues->roSitePrefix . $this->processingStoreId);
         if (!empty($site) && ($xmlOrderHeader->SITE == null || $xmlOrderHeader->SITE == "")) //If it's been set via an attribute then don't overwrite it.
             $xmlOrderHeader->SITE = $site;
-        
+
         $orderTimeStamp = strtotime($orderObj->getCreatedAtDate());
         if ($orderTimeStamp)
-            $xmlOrderHeader->ORDER_DATE = date('Y-m-d\TH:i:s', $orderTimeStamp);        
+            $xmlOrderHeader->ORDER_DATE = date('Y-m-d\TH:i:s', $orderTimeStamp);
     }
-    
+
     protected function exportOrderCustomerDetail($orderObj, &$xmlSalesOrder)
     {
         $customerObj = Mage::getModel('customer/customer')->load($orderObj->getCustomerId());
-        
+
         $xmlCustomerDetail = $xmlSalesOrder->addChild('CUSTOMER_DETAIL');
         $xmlCustomerDetail->IS_NEW_CUSTOMER = '0'; //Let Khaos do the matching.
         $xmlCustomerDetail->COMPANY_CODE = $customerObj->getKcCompanyCode(); //If we have it, provide it.
@@ -577,63 +604,63 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
         $xmlCustomerDetail->WEB_USER = $orderObj->getCustomerEmail();
         $xmlCustomerDetail->COMPANY_CLASS = Mage::getModel('customer/group')->load($orderObj->getCustomerGroupId())->getCode();
         $xmlCustomerDetail->COMPANY_NAME = $orderObj->getBillingAddress()->getName();
-        
+
         $this->exportOrderAddresses($orderObj, $xmlCustomerDetail, $customerObj);
     }
-    
+
     protected function exportOrderAddresses($orderObj, &$xmlCustomerDetail, $customerObj)
     {
         $xmlAddresses = $xmlCustomerDetail->addChild('ADDRESSES');
         $this->exportOrderAddress($orderObj, self::cAdressTypeInv, $xmlAddresses, $customerObj);
         $this->exportOrderAddress($orderObj, self::cAdressTypeDel, $xmlAddresses, $customerObj);
     }
-    
+
     protected function exportOrderAddress($orderObj, $addressType, &$xmlAddresses, $customerObj)
     {
         //Tags are formatted like <IADDRESS1> or <DADDRESS1>
         //Also <INVADDR> or <DELADDR>
         if ($addressType == self::cAdressTypeInv)
         {
-            $addressTypeField = 'INVADDR'; 
-            $ap = 'I'; 
+            $addressTypeField = 'INVADDR';
+            $ap = 'I';
             $addressObj = $orderObj->getBillingAddress();
         }
         else if ($addressType == self::cAdressTypeDel) //Just to be sure incase we come up with another address type
         {
             $addressTypeField = 'DELADDR';
-            $ap = 'D';            
+            $ap = 'D';
             $addressObj = $orderObj->getShippingAddress();
         }
-        
+
         $xmlAddress = $xmlAddresses->addChild($addressTypeField);
-        
-        //If the user has specified a company name against the delivery address 
+
+        //If the user has specified a company name against the delivery address
         //then switch things around a little so that company name becomes address1 and so on.
         $addressLines = $addressObj->getStreet();
         if ($addressType == self::cAdressTypeDel && $addressObj->getCompany() != "")
         {
             $currentAddressLines = $addressLines;
-            
+
             $addressLines[0] = $addressObj->getCompany();
             $addressLines[1] = $currentAddressLines[0];
             if (count($currentAddressLines) > 1)
                 $addressLines[2] = $currentAddressLines[1];
         }
-        
+
         $count = 1;
         foreach ($addressLines as $addressLine)
         {
             $xmlAddress->{$ap . 'ADDRESS' . $count} = $addressLine;
             $count++;
         }
-            
+
         $xmlAddress->{$ap . 'TOWN'} = $addressObj->getCity();
         $xmlAddress->{$ap . 'COUNTY'} = $addressObj->getRegion();
         $postcode = ($addressObj->getPostcode() == "") ? "." : $addressObj->getPostcode();
         $xmlAddress->{$ap . 'POSTCODE'} = $postcode;
         $xmlAddress->{$ap . 'COUNTRY_NAME'} = Mage::getModel('directory/country')->load($addressObj->getCountryId())->getName();
         $xmlAddress->{$ap . 'TEL'} = $addressObj->getTelephone();
-        
+
         $xmlAddress->{$ap . 'TITLE'} = $addressObj->getPrefix();
         $xmlAddress->{$ap . 'FORENAME'} = $addressObj->getFirstname();
         $xmlAddress->{$ap . 'SURNAME'} = $addressObj->getLastname();
