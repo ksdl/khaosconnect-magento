@@ -492,8 +492,8 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
 
         while ($row = $query->fetch())
         {
-            if ($row['auth_code'] == 'M2EPRO') {
-                $transaction = unserialize($row['transaction_id']);
+            if ($row['type'] == 'm2epropayment') {
+                $transaction = unserialize($row['preauth_ref']);
                 if ($transaction['payment_method'] == 'PayPal') {
                     $row['card_number'] = 'PAYPAL';
                     $row['auth_code']   = 'PAYPAL';
@@ -502,6 +502,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                     $row['card_number']    = strtoupper($transaction['component_mode']);
                     $row['auth_code']      = strtoupper($transaction['component_mode']);
                     $row['transaction_id'] = $transaction['channel_order_id'];
+                    $row['preauth_ref']    = '';
                 }
             }
 
