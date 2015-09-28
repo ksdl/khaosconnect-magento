@@ -564,7 +564,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
     {
         $xmlOrderHeader = $xmlSalesOrder->addChild('ORDER_HEADER');
         $xmlOrderHeader->ORDER_AMOUNT = (string)$orderObj->getGrandTotal();
-        $xmlOrderHeader->ORDER_CURRENCY = $orderObj->getOrderCurrencyCode();
+        $xmlOrderHeader->ORDER_CURRENCY_CODE = $orderObj->getOrderCurrencyCode();
         $xmlOrderHeader->ASSOCIATED_REF = $orderObj->getIncrementId();
         $xmlOrderHeader->DELIVERY_GRS = (string)$orderObj->getShippingInclTax();
         $xmlOrderHeader->PO_NUMBER = ((string)$orderObj->getKcPoNumber() == "") ? substr($orderObj->getOrderRefNo(),0,30) : substr((string)$orderObj->getKcPoNumber(),0,30);
