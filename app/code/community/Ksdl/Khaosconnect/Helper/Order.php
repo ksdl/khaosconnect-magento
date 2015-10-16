@@ -424,6 +424,7 @@ class Ksdl_Khaosconnect_Helper_Order extends Ksdl_Khaosconnect_Helper_Basehelper
                 $sql .= "from " . $this->resource->getTableName('sales_flat_order_payment') . " where parent_id = ";
                 break;
             case "sagepaydirectpro":
+            case "sagepaypaypal":
             case "sagepayserver":
             case "sagepayserver_moto":
                 $sql = "select ";
